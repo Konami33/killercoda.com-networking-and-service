@@ -54,8 +54,13 @@ spec:
       targetPort: 80
 ```
 
-Save: `nginx-service.yaml`
-Run: `kubectl apply -f nginx-service.yaml`
+Save the yaml file: `nginx-service.yaml`
+
+Run:
+
+```bash
+kubectl apply -f nginx-service.yaml
+```
 
 For Part II, retrieve the IP addresses of the pods, sort them in ascending order, and save them to the file `pod_ips.txt`:
 
@@ -65,7 +70,71 @@ echo "IP_ADDRESS" > pod_ips.txt && kubectl get pods -o wide --sort-by="{.status.
 
 This command gets the pods with their IP addresses in wide format, sorts them by their IP addresses and then extracts the IP addresses into the `pod_ips.txt` file.
 
-To see the pod_ips.txt file: `cat pod_ips.txt`
+To see the pod_ips.txt file run: 
+```bash
+cat pod_ips.txt
+```
 
 # Task 03
+Create a ReplicaSet named `dns-rs-cka` with 2 replicas in the dns-ns namespace using the image  `registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3` and set the command to sleep `3600` with the container named `dns-container`.
+
+Once the pods are up and running, run the nslookup kubernetes.default command from any one of the pod and save the output into a file named `dns-output.txt`.
+
+Solution:
+
+To create a ReplicaSet named `dns-rs-cka` with 2 replicas in the `dns-ns` namespace, using the specified image `registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3` and setting the command to `sleep 3600` with the container named `dns-container`, you can use the following YAML configuration:
+
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: dns-rs-cka
+  namespace: dns-ns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dns-rs-cka
+  template:
+    metadata:
+      labels:
+        app: dns-rs-cka
+    spec:
+      containers:
+      - name: dns-container
+        image: registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3
+        command: ["sleep", "3600", "nslookup", "kubernetes.default"]
+```
+
+Create namespace:
+
+```bash
+kubectl create ns dns-ns
+```
+
+Create the ReplicaSet:
+
+Save and apply:
+
+```bash
+kubectl apply -f dns-rs.yaml
+```
+
+Wait for the pods to become ready:
+
+```bash
+kubectl wait --for=condition=ready pod -l app=dns-rs-cka --timeout=60s -n dns-ns
+```
+
+Once the pods are up and running, you can run the `nslookup kubernetes.default` command from any one of the pods and save the output into a file named `dns-output.txt`. Here's how you can do it:
+
+```bash
+# Get the name of one of the pods
+POD_NAME=$(kubectl get pods -l app=dns-rs-cka -o jsonpath="{.items[0].metadata.name}" -n dns-ns)
+
+# Run nslookup command inside the pod
+kubectl exec -it $POD_NAME -n dns-ns -- nslookup kubernetes.default > dns-output.txt
+```
+
+This command retrieves the name of one of the pods in the `dns-rs-cka` ReplicaSet, then executes the `nslookup kubernetes.default` command inside that pod and redirects the output to the `dns-output.txt` file.
 
